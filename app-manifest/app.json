@@ -1,0 +1,22 @@
+{
+  "name": "RV Confidence Assistant",
+  "short_name": "RV Confidence",
+  "description": "High-trust decision intelligence for RV buyers and owners. Compare models, understand warranties and construction, scan deal risk, estimate depreciation, and get safety-first maintenance triage — with verified sources and no dealer steering.",
+  "version": "0.1.0",
+  "ui": {
+    "url": "http://localhost:5173/"
+  },
+  "mcp": {
+    "url": "http://localhost:8787/"
+  },
+  "permissions": {
+    "network": [
+      "http://localhost:5173",
+      "http://localhost:8787",
+      "http://127.0.0.1:8000"
+    ]
+  },
+  "privacy_policy_url": "https://vivacious-drop-087.notion.site/RV-Buyer-Owner-Confidence-Assistant-Privacy-Policy-2e43cc1c3de8800e8623ca8a894a51f5",
+  "terms_of_service_url": null,
+  "category": "shopping"
+}

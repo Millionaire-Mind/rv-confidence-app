@@ -1,0 +1,57 @@
+{
+  "models": [
+    {
+      "manufacturer": "Jayco",
+      "model": "Greyhawk",
+      "year": 2026,
+      "trim": "29MV",
+      "source_url": "https://www.jayco.com/rvs/class-c-motorhomes/2026-greyhawk/29mv/",
+      "last_verified": "2026-01-10",
+      "specs": {
+        "rv_type": "Class C motorhome",
+        "exterior_length_overall": "32' 6\"",
+        "gvwr_lb": 14500,
+        "gcwr_lb": 22000,
+        "sleeping_capacity": 6,
+        "fresh_water_gal": 47.0,
+        "gray_water_gal": 41.0,
+        "black_tank_gal": 32.0,
+        "fuel_tank_gal": 55,
+        "exterior_width": "8' 4\"",
+        "exterior_height_with_ac": "11' 8\""
+      },
+      "construction_refs": {
+        "uses_verified_construction": true
+      },
+      "warranty_refs": {
+        "uses_verified_warranty": true
+      }
+    },
+    {
+      "manufacturer": "Jayco",
+      "model": "Greyhawk",
+      "year": 2026,
+      "trim": "31F",
+      "source_url": "https://www.jayco.com/rvs/class-c-motorhomes/2026-greyhawk/31f/",
+      "last_verified": "2026-01-10",
+      "specs": {
+        "rv_type": "Class C motorhome",
+        "exterior_length_overall": "32' 6\"",
+        "gvwr_lb": 14500,
+        "gcwr_lb": 22000,
+        "sleeping_capacity": 7,
+        "fresh_water_gal": 47.0,
+        "gray_water_gal": 41.0,
+        "black_tank_gal": 31.0,
+        "exterior_width": "8' 4\"",
+        "exterior_height_with_ac": "11' 8\""
+      },
+      "construction_refs": {
+        "uses_verified_construction": true
+      },
+      "warranty_refs": {
+        "uses_verified_warranty": true
+      }
+    }
+  ]
+}

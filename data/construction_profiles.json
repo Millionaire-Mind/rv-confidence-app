@@ -1,0 +1,18 @@
+{
+  "construction_types": {
+    "stick_and_tin": {
+      "neutral_description": "Wood or aluminum framing with corrugated metal (aluminum) exterior siding; common in value-oriented travel trailers.",
+      "tradeoffs": {
+        "pros": ["Often lower purchase price", "Repairs can be simpler for some exterior damage"],
+        "cons": ["Seams and fasteners can increase water-intrusion risk if not maintained", "May have lower insulation performance depending on build"]
+      }
+    },
+    "laminated_fiberglass": {
+      "neutral_description": "Layered wall construction with fiberglass exterior bonded to underlying materials; common in mid to higher tiers.",
+      "tradeoffs": {
+        "pros": ["Often better exterior finish", "Can improve insulation and rigidity depending on design"],
+        "cons": ["Repairs can be more complex if delamination or water damage occurs", "May cost more upfront"]
+      }
+    }
+  }
+}

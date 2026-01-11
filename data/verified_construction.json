@@ -1,0 +1,22 @@
+{
+  "Jayco": {
+    "Greyhawk": {
+      "source_url": "https://www.jayco.com/rvs/class-c-motorhomes/2026-greyhawk/",
+      "last_verified": "2026-01-10",
+      "construction_summary": "Jayco’s Greyhawk page describes its StrongholdVBL® vacuum-bond process for roof, floor, and sidewalls, listing wall components that include fiberglass exterior siding, welded aluminum framing, and block foam insulation.",
+      "construction_tags": [
+        "laminated",
+        "vacuum_bonded",
+        "fiberglass_exterior_siding",
+        "welded_aluminum_framing",
+        "foam_insulation"
+      ]
+    },
+    "default": {
+      "source_url": "PASTE_OFFICIAL_SOURCE_URL_HERE",
+      "last_verified": "2026-01-10",
+      "construction_summary": "PLACEHOLDER - DO NOT USE AS FACT UNTIL VERIFIED",
+      "construction_tags": []
+    }
+  }
+}

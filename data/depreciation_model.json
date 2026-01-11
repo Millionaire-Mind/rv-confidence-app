@@ -1,0 +1,29 @@
+{
+  "version": "v1",
+  "last_updated": "2026-01-10",
+  "disclosure": "Estimates only. Not financial advice. Actual resale value varies widely by condition, mileage, region, demand, and maintenance history.",
+  "default_curves": {
+    "motorhome": {
+      "year_1_loss_pct_range": [0.12, 0.22],
+      "year_3_total_loss_pct_range": [0.25, 0.40],
+      "year_5_total_loss_pct_range": [0.35, 0.55]
+    },
+    "towable": {
+      "year_1_loss_pct_range": [0.15, 0.28],
+      "year_3_total_loss_pct_range": [0.30, 0.48],
+      "year_5_total_loss_pct_range": [0.40, 0.60]
+    }
+  },
+  "adjustments": {
+    "high_miles_per_year": {
+      "trigger_miles_per_year": 12000,
+      "add_loss_pct": [0.02, 0.05]
+    },
+    "poor_storage_outdoor_sun": {
+      "add_loss_pct": [0.01, 0.03]
+    },
+    "excellent_maintenance_records": {
+      "reduce_loss_pct": [0.01, 0.03]
+    }
+  }
+}
