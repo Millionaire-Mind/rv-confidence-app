@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Literal, Optional
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, conint, confloat, constr
+from pydantic import BaseModel, conint, confloat, constr
 
 
 # --------------------------------------------------
@@ -19,20 +19,16 @@ from pydantic import BaseModel, Field, conint, confloat, constr
 app = FastAPI(
     title="RV Buyer & Owner Confidence Assistant (Local Dev)",
     description="High-trust decision intelligence tools for RV buyers and owners.",
-    version="0.7.4",
+    version="0.7.5",
     openapi_url=None,   # critical
-    docs_url=None,      # optional: keep off in production
-    redoc_url=None,     # optional: keep off in production
+    docs_url=None,      # recommended for production
+    redoc_url=None,     # recommended for production
 )
 
-
-# --------------------------------------------------
-# Paths / data
 # Repo structure:
 #   rv-confidence-app/
 #     app/main.py
 #     data/*.json
-# --------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "data")
 
@@ -211,11 +207,6 @@ def health() -> Dict[str, Any]:
     return {"status": "ok", "service": "rv-confidence", "time_utc": utc_now_iso()}
 
 
-@app.get("/debug/env", include_in_schema=False)
-def debug_env() -> Dict[str, Any]:
-    return {"PUBLIC_BASE_URL": os.getenv("PUBLIC_BASE_URL"), "PORT": os.getenv("PORT")}
-
-
 # --------------------------------------------------
 # Tool 1: manufacturer_intelligence
 # --------------------------------------------------
@@ -349,7 +340,10 @@ def manufacturer_intelligence(req: ManufacturerIntelligenceRequest) -> Dict[str,
             "meaning": "Requested section is not implemented as source-backed yet; do not treat as factual claims.",
             "can_be_used_as_fact": False,
         }
-        output["quality_overview"] = {"status": "stub", "summary": "Not implemented yet. This will be neutral and source-backed (no hype)."}
+        output["quality_overview"] = {
+            "status": "stub",
+            "summary": "Not implemented yet. This will be neutral and source-backed (no hype).",
+        }
 
     return {"tool": "manufacturer_intelligence", "input": req.model_dump(), "output": output}
 
@@ -391,7 +385,12 @@ def rv_compare(req: RVCompareRequest) -> Dict[str, Any]:
                 "last_verified": entry.get("last_verified"),
                 "specs": entry.get("specs", {}),
             }
-        return {"status": "unverified", "source_url": None, "last_verified": None, "specs": entry.get("specs", {})}
+        return {
+            "status": "unverified",
+            "source_url": None,
+            "last_verified": None,
+            "specs": entry.get("specs", {}),
+        }
 
     rv_a_block = pack(a)
     rv_b_block = pack(b)
@@ -402,7 +401,13 @@ def rv_compare(req: RVCompareRequest) -> Dict[str, Any]:
     if rv_b_block.get("status") != "verified":
         unknowns.append("RV B specs are not verified.")
 
-    comparison = {"specs": {"rv_a": rv_a_block, "rv_b": rv_b_block, "note": "Specs are factual only when status is verified and a source_url is provided."}}
+    comparison: Dict[str, Any] = {
+        "specs": {
+            "rv_a": rv_a_block,
+            "rv_b": rv_b_block,
+            "note": "Specs are factual only when status is verified and a source_url is provided.",
+        }
+    }
 
     # Compute key differences only if both verified
     if rv_a_block.get("status") == "verified" and rv_b_block.get("status") == "verified":
@@ -419,7 +424,8 @@ def rv_compare(req: RVCompareRequest) -> Dict[str, Any]:
             ("exterior_width", "Exterior width"),
             ("exterior_height_with_ac", "Exterior height (with A/C)"),
         ]
-        diffs, same = [], []
+        diffs: List[Dict[str, Any]] = []
+        same: List[Dict[str, Any]] = []
         for f, label in fields:
             if f in a_specs and f in b_specs:
                 if a_specs[f] != b_specs[f]:
@@ -440,7 +446,11 @@ def rv_compare(req: RVCompareRequest) -> Dict[str, Any]:
         "trust_disclosures": trust_disclosures,
         "unknowns": unknowns,
         "comparison": comparison,
-        "data_confidence": {"level": "partial" if not unknowns else "stub", "meaning": "Verified-only comparisons; missing data stays unknown.", "can_be_used_as_fact": len(unknowns) == 0},
+        "data_confidence": {
+            "level": "partial" if not unknowns else "stub",
+            "meaning": "Verified-only comparisons; missing data stays unknown.",
+            "can_be_used_as_fact": len(unknowns) == 0,
+        },
     }
 
     return {"tool": "rv_compare", "input": req.model_dump(), "output": output}
@@ -455,8 +465,16 @@ def cost_depreciation_estimate(req: CostDepreciationRequest) -> Dict[str, Any]:
     curves = depreciation_model.get("curves", {}) if isinstance(depreciation_model, dict) else {}
 
     defaults = {
-        "motorhome": {"year_1_loss_pct_range": [0.12, 0.22], "year_3_total_loss_pct_range": [0.25, 0.40], "year_5_total_loss_pct_range": [0.35, 0.55]},
-        "towable": {"year_1_loss_pct_range": [0.10, 0.20], "year_3_total_loss_pct_range": [0.22, 0.36], "year_5_total_loss_pct_range": [0.32, 0.50]},
+        "motorhome": {
+            "year_1_loss_pct_range": [0.12, 0.22],
+            "year_3_total_loss_pct_range": [0.25, 0.40],
+            "year_5_total_loss_pct_range": [0.35, 0.55],
+        },
+        "towable": {
+            "year_1_loss_pct_range": [0.10, 0.20],
+            "year_3_total_loss_pct_range": [0.22, 0.36],
+            "year_5_total_loss_pct_range": [0.32, 0.50],
+        },
     }
 
     curve = curves.get(category_used) or defaults.get(category_used) or defaults["motorhome"]
@@ -476,16 +494,31 @@ def cost_depreciation_estimate(req: CostDepreciationRequest) -> Dict[str, Any]:
 
     output = {
         "status": "ok",
-        "rv": {**req.rv.model_dump(), "category_used": category_used, "category_source": ("input" if req.rv_category else "default")},
-        "data_confidence": {"level": "partial", "meaning": "Estimates are disclosed ranges, not guarantees.", "can_be_used_as_fact": False},
-        "model_meta": {"model_version": depreciation_model.get("model_version", "v1") if isinstance(depreciation_model, dict) else "v1", "last_updated": depreciation_model.get("last_updated", utc_now_iso()[:10]) if isinstance(depreciation_model, dict) else utc_now_iso()[:10]},
+        "rv": {
+            **req.rv.model_dump(),
+            "category_used": category_used,
+            "category_source": ("input" if req.rv_category else "default"),
+        },
+        "data_confidence": {
+            "level": "partial",
+            "meaning": "Estimates are disclosed ranges, not guarantees.",
+            "can_be_used_as_fact": False,
+        },
+        "model_meta": {
+            "model_version": depreciation_model.get("model_version", "v1") if isinstance(depreciation_model, dict) else "v1",
+            "last_updated": depreciation_model.get("last_updated", utc_now_iso()[:10]) if isinstance(depreciation_model, dict) else utc_now_iso()[:10],
+        },
         "disclosures": [
             "Estimates only. Not financial advice. Actual resale value varies by condition, mileage, region, demand, and maintenance history.",
             "This tool does not negotiate, recommend dealers, or guarantee prices.",
         ],
         "depreciation_estimate": {
             "status": "estimate",
-            "percent_ranges": {"year_1_loss_pct_range": y1, "year_3_total_loss_pct_range": y3, "year_5_total_loss_pct_range": y5},
+            "percent_ranges": {
+                "year_1_loss_pct_range": y1,
+                "year_3_total_loss_pct_range": y3,
+                "year_5_total_loss_pct_range": y5,
+            },
             "dollar_ranges": dollar_ranges,
             "note": "Dollar ranges require purchase_price_usd." if not dollar_ranges else "Dollar ranges computed from purchase_price_usd.",
         },
@@ -502,17 +535,17 @@ def deal_risk_scan(req: DealRiskScanRequest) -> Dict[str, Any]:
     fees = req.fees or []
     total_fees = sum(float(f.amount_usd) for f in fees) if fees else None
 
-    clarifying_questions = []
+    clarifying_questions: List[str] = []
     if req.quoted_unit_price_usd is None:
         clarifying_questions.append("What is the quoted unit price (before taxes/fees)?")
     if not fees:
         clarifying_questions.append("Can you list the taxes/fees/add-ons line by line (name + amount)?")
 
-    flags = []
+    flags: List[Dict[str, Any]] = []
     for f in fees:
         name_l = f.name.lower()
 
-        # Heuristic: add-ons not clearly optional
+        # Optional add-ons not clearly labeled
         if (f.category == "addon" or "protection" in name_l or "package" in name_l) and f.disclosed_as_optional is None:
             flags.append(
                 {
@@ -545,14 +578,20 @@ def deal_risk_scan(req: DealRiskScanRequest) -> Dict[str, Any]:
 
     checkpoint = {
         "suggested_next_move": "pause_and_clarify" if clarifying_questions else "review_and_compare",
-        "reason": "Key details are missing. A clean itemized out-the-door number reduces surprise and makes comparisons fair."
-        if clarifying_questions
-        else "You have enough detail to compare out-the-door totals.",
+        "reason": (
+            "Key details are missing. A clean itemized out-the-door number reduces surprise and makes comparisons fair."
+            if clarifying_questions
+            else "You have enough detail to compare out-the-door totals."
+        ),
     }
 
     output = {
         "status": "ok",
-        "data_confidence": {"level": "partial" if not clarifying_questions else "stub", "meaning": "Flags clarity risks and cost drivers; does not prove wrongdoing.", "can_be_used_as_fact": False},
+        "data_confidence": {
+            "level": "partial" if not clarifying_questions else "stub",
+            "meaning": "Flags clarity risks and cost drivers; does not prove wrongdoing.",
+            "can_be_used_as_fact": False,
+        },
         "summary": {
             "quoted_unit_price_usd": req.quoted_unit_price_usd,
             "total_fees_usd": total_fees,
@@ -595,7 +634,7 @@ def deal_risk_scan(req: DealRiskScanRequest) -> Dict[str, Any]:
 def maintenance_repair_triage(req: MaintenanceRepairTriageRequest) -> Dict[str, Any]:
     rf = req.red_flags or TriageRedFlags()
 
-    stop_triggers = []
+    stop_triggers: List[str] = []
     if rf.propane_smell:
         stop_triggers.append("propane_smell")
     if rf.carbon_monoxide_alarm:
