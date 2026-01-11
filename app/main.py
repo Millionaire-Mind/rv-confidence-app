@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, conint, confloat, constr
 # ----------------------------
 app = FastAPI(
     title="RV Buyer & Owner Confidence Assistant (Local Dev)",
-    version="0.7.0",
+    version="0.7.1",
     description="High-trust decision intelligence tools for RV buyers and owners.",
 )
 
