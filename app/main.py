@@ -133,11 +133,14 @@ class MaintenanceRepairTriageRequest(BaseModel):
 def health() -> Dict[str, Any]:
     return {"status": "ok", "service": "rv-confidence", "time_utc": utc_now_iso()}
 
-@app.get("/debug/env", include_in_schema=False)
-def debug_env() -> Dict[str, Any]:
+@app.get("/debug/openapi", include_in_schema=False)
+def debug_openapi() -> Dict[str, Any]:
+    schema = app.openapi()
     return {
         "PUBLIC_BASE_URL": os.getenv("PUBLIC_BASE_URL"),
-        "PORT": os.getenv("PORT"),
+        "has_servers": "servers" in schema,
+        "servers": schema.get("servers"),
+        "keys_at_top": [k for k in schema.keys() if k in ("openapi", "info", "servers", "paths")],
     }
 
 @app.get("/tools", include_in_schema=False)
