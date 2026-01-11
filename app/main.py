@@ -8,12 +8,17 @@ import os
 from datetime import datetime, timezone
 
 # --------------------------------------------------
-# App metadata
+# IMPORTANT:
+# Disable FastAPI's built-in OpenAPI route so OUR
+# /openapi.json is the one that gets served.
 # --------------------------------------------------
 app = FastAPI(
     title="RV Buyer & Owner Confidence Assistant (Local Dev)",
     description="High-trust decision intelligence tools for RV buyers and owners.",
-    version="0.7.2",
+    version="0.7.3",
+    openapi_url=None,   # <-- critical
+    docs_url=None,      # optional: turn off Swagger UI
+    redoc_url=None,     # optional: turn off ReDoc
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -76,67 +81,53 @@ class MaintenanceRepairTriageRequest(BaseModel):
     propane_smell: Optional[bool] = False
 
 # --------------------------------------------------
-# Non-tool endpoints (hidden)
+# Non-tool endpoints (hidden from schema)
 # --------------------------------------------------
 @app.get("/health", include_in_schema=False)
 def health():
-    return {"status": "ok", "time": utc_now_iso()}
+    return {"status": "ok", "service": "rv-confidence", "time_utc": utc_now_iso()}
 
 @app.get("/debug/env", include_in_schema=False)
-def debug_env():
+def debug_env() -> Dict[str, Any]:
     return {
         "PUBLIC_BASE_URL": os.getenv("PUBLIC_BASE_URL"),
         "PORT": os.getenv("PORT"),
     }
 
-@app.get("/debug/openapi", include_in_schema=False)
-def debug_openapi():
-    schema = get_openapi(
-        title=app.title,
-        version=app.version,
-        description=app.description,
-        routes=app.routes,
-    )
-    return {
-        "has_servers": "servers" in schema,
-        "servers": schema.get("servers"),
-        "public": os.getenv("PUBLIC_BASE_URL"),
-    }
-
 # --------------------------------------------------
-# Tool endpoints
+# Tool endpoints (these ARE in schema)
 # --------------------------------------------------
 @app.post("/tools/manufacturer_intelligence")
 def manufacturer_intelligence(req: ManufacturerIntelligenceRequest):
     data = manufacturer_warranties.get(req.manufacturer)
     if not data:
-        return {"status": "not_found"}
+        return {"status": "not_found", "manufacturer": req.manufacturer}
     return {
         "manufacturer": req.manufacturer,
         "warranty": data,
-        "data_confidence": {"can_be_used_as_fact": True}
+        "data_confidence": {"can_be_used_as_fact": True},
     }
 
 @app.post("/tools/rv_compare")
 def rv_compare(req: RVCompareRequest):
-    return {"rv_a": req.rv_a, "rv_b": req.rv_b}
+    return {"status": "ok", "rv_a": req.rv_a.model_dump(), "rv_b": req.rv_b.model_dump()}
 
 @app.post("/tools/cost_depreciation_estimate")
-def cost_estimate(req: CostDepreciationRequest):
-    return {"rv": req.rv, "note": "estimate only"}
+def cost_depreciation_estimate(req: CostDepreciationRequest):
+    return {"status": "ok", "rv": req.rv.model_dump(), "note": "estimate only"}
 
 @app.post("/tools/deal_risk_scan")
-def deal_scan(req: DealRiskScanRequest):
-    return {"quoted": req.quoted_unit_price_usd, "fees": req.fees}
+def deal_risk_scan(req: DealRiskScanRequest):
+    return {"status": "ok", "quoted_unit_price_usd": req.quoted_unit_price_usd, "fees": [f.model_dump() for f in (req.fees or [])]}
 
 @app.post("/tools/maintenance_repair_triage")
-def triage(req: MaintenanceRepairTriageRequest):
+def maintenance_repair_triage(req: MaintenanceRepairTriageRequest):
     if req.propane_smell:
-        return {"status": "stop_now", "reason": "propane smell"}
-    return {"status": "ok"}
+        return {"status": "ok", "safety_level": "stop_now", "reason": "Propane smell detected. Stop and get professional help."}
+    return {"status": "ok", "safety_level": "caution", "reason": "No high-risk red flag selected."}
 
 # --------------------------------------------------
-# HARD OVERRIDE OpenAPI so GPT always sees servers
+# OUR OpenAPI endpoint (Actions will import this)
 # --------------------------------------------------
 @app.get("/openapi.json", include_in_schema=False)
 def openapi_json():
@@ -152,3 +143,12 @@ def openapi_json():
         schema["servers"] = [{"url": public}]
 
     return JSONResponse(schema)
+
+@app.get("/debug/openapi", include_in_schema=False)
+def debug_openapi() -> Dict[str, Any]:
+    schema = openapi_json().body.decode("utf-8")
+    return {
+        "PUBLIC_BASE_URL": os.getenv("PUBLIC_BASE_URL"),
+        "note": "This endpoint confirms the custom /openapi.json is active. Check /openapi.json for servers.",
+        "openapi_json_starts_with": schema[:120],
+    }
