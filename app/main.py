@@ -192,7 +192,12 @@ def maintenance_repair_triage(req: MaintenanceRepairTriageRequest):
 # ----------------------------
 
 def custom_openapi():
+    public_base = os.getenv("PUBLIC_BASE_URL")
+
+    # If schema is already cached, ensure servers is injected if missing.
     if app.openapi_schema:
+        if public_base and "servers" not in app.openapi_schema:
+            app.openapi_schema["servers"] = [{"url": public_base}]
         return app.openapi_schema
 
     schema = get_openapi(
@@ -201,11 +206,8 @@ def custom_openapi():
         routes=app.routes,
     )
 
-    public_base = os.getenv("PUBLIC_BASE_URL")
     if public_base:
         schema["servers"] = [{"url": public_base}]
 
     app.openapi_schema = schema
     return app.openapi_schema
-
-app.openapi = custom_openapi
