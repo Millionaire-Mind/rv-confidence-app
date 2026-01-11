@@ -19,16 +19,12 @@ from pydantic import BaseModel, conint, confloat, constr
 app = FastAPI(
     title="RV Buyer & Owner Confidence Assistant (Local Dev)",
     description="High-trust decision intelligence tools for RV buyers and owners.",
-    version="0.7.5",
+    version="0.7.6",
     openapi_url=None,   # critical
     docs_url=None,      # recommended for production
     redoc_url=None,     # recommended for production
 )
 
-# Repo structure:
-#   rv-confidence-app/
-#     app/main.py
-#     data/*.json
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "data")
 
@@ -49,11 +45,20 @@ def norm_key(s: str) -> str:
     return (s or "").strip().lower()
 
 
-# Load datasets (safe defaults)
+# Load datasets
 manufacturer_warranties = load_json("manufacturer_warranties.json")
 verified_construction = load_json("verified_construction.json")
 rv_models = load_json("rv_models.json")
 depreciation_model = load_json("depreciation_model.json")
+
+
+# --------------------------------------------------
+# RESPONSE ENVELOPE (this fixes GPT Builder schema errors)
+# --------------------------------------------------
+class ToolResponse(BaseModel):
+    tool: str
+    input: Dict[str, Any]
+    output: Dict[str, Any]
 
 
 # --------------------------------------------------
@@ -200,7 +205,7 @@ class MaintenanceRepairTriageRequest(BaseModel):
 
 
 # --------------------------------------------------
-# Non-tool endpoints (hidden from schema)
+# Non-tool endpoint (hidden)
 # --------------------------------------------------
 @app.get("/health", include_in_schema=False)
 def health() -> Dict[str, Any]:
@@ -210,8 +215,8 @@ def health() -> Dict[str, Any]:
 # --------------------------------------------------
 # Tool 1: manufacturer_intelligence
 # --------------------------------------------------
-@app.post("/tools/manufacturer_intelligence")
-def manufacturer_intelligence(req: ManufacturerIntelligenceRequest) -> Dict[str, Any]:
+@app.post("/tools/manufacturer_intelligence", response_model=ToolResponse)
+def manufacturer_intelligence(req: ManufacturerIntelligenceRequest) -> ToolResponse:
     trust_disclosures = [
         "This is educational information, not legal or financial advice.",
         "No dealer recommendations. No sponsored content in v1.",
@@ -229,7 +234,6 @@ def manufacturer_intelligence(req: ManufacturerIntelligenceRequest) -> Dict[str,
     focus = req.focus or "full"
     m_key = norm_key(req.manufacturer)
 
-    # Warranty (manufacturer-level only)
     if focus in ("warranty", "full"):
         entry = None
         for k, v in manufacturer_warranties.items():
@@ -270,7 +274,6 @@ def manufacturer_intelligence(req: ManufacturerIntelligenceRequest) -> Dict[str,
                 ],
             }
 
-    # Construction (educational definitions + optional verified model facts)
     if focus in ("construction", "full"):
         construction_types = {
             "stick_and_tin": {
@@ -333,7 +336,6 @@ def manufacturer_intelligence(req: ManufacturerIntelligenceRequest) -> Dict[str,
             "verified_construction_for_this_request": verified_block,
         }
 
-    # Placeholder: quality_overview
     if focus == "quality_overview":
         output["data_confidence"] = {
             "level": "stub",
@@ -345,14 +347,14 @@ def manufacturer_intelligence(req: ManufacturerIntelligenceRequest) -> Dict[str,
             "summary": "Not implemented yet. This will be neutral and source-backed (no hype).",
         }
 
-    return {"tool": "manufacturer_intelligence", "input": req.model_dump(), "output": output}
+    return ToolResponse(tool="manufacturer_intelligence", input=req.model_dump(), output=output)
 
 
 # --------------------------------------------------
-# Tool 2: rv_compare (verified-only comparisons)
+# Tool 2: rv_compare
 # --------------------------------------------------
-@app.post("/tools/rv_compare")
-def rv_compare(req: RVCompareRequest) -> Dict[str, Any]:
+@app.post("/tools/rv_compare", response_model=ToolResponse)
+def rv_compare(req: RVCompareRequest) -> ToolResponse:
     trust_disclosures = [
         "This comparison is factual only where source-backed model entries exist in the dataset.",
         "If a spec is missing or the model is not found, we will say so rather than guessing.",
@@ -385,12 +387,7 @@ def rv_compare(req: RVCompareRequest) -> Dict[str, Any]:
                 "last_verified": entry.get("last_verified"),
                 "specs": entry.get("specs", {}),
             }
-        return {
-            "status": "unverified",
-            "source_url": None,
-            "last_verified": None,
-            "specs": entry.get("specs", {}),
-        }
+        return {"status": "unverified", "source_url": None, "last_verified": None, "specs": entry.get("specs", {})}
 
     rv_a_block = pack(a)
     rv_b_block = pack(b)
@@ -409,7 +406,6 @@ def rv_compare(req: RVCompareRequest) -> Dict[str, Any]:
         }
     }
 
-    # Compute key differences only if both verified
     if rv_a_block.get("status") == "verified" and rv_b_block.get("status") == "verified":
         a_specs = rv_a_block.get("specs", {})
         b_specs = rv_b_block.get("specs", {})
@@ -452,33 +448,23 @@ def rv_compare(req: RVCompareRequest) -> Dict[str, Any]:
             "can_be_used_as_fact": len(unknowns) == 0,
         },
     }
-
-    return {"tool": "rv_compare", "input": req.model_dump(), "output": output}
+    return ToolResponse(tool="rv_compare", input=req.model_dump(), output=output)
 
 
 # --------------------------------------------------
-# Tool 3: cost_depreciation_estimate (disclosed ranges)
+# Tool 3: cost_depreciation_estimate
 # --------------------------------------------------
-@app.post("/tools/cost_depreciation_estimate")
-def cost_depreciation_estimate(req: CostDepreciationRequest) -> Dict[str, Any]:
+@app.post("/tools/cost_depreciation_estimate", response_model=ToolResponse)
+def cost_depreciation_estimate(req: CostDepreciationRequest) -> ToolResponse:
     category_used = req.rv_category or "motorhome"
     curves = depreciation_model.get("curves", {}) if isinstance(depreciation_model, dict) else {}
 
     defaults = {
-        "motorhome": {
-            "year_1_loss_pct_range": [0.12, 0.22],
-            "year_3_total_loss_pct_range": [0.25, 0.40],
-            "year_5_total_loss_pct_range": [0.35, 0.55],
-        },
-        "towable": {
-            "year_1_loss_pct_range": [0.10, 0.20],
-            "year_3_total_loss_pct_range": [0.22, 0.36],
-            "year_5_total_loss_pct_range": [0.32, 0.50],
-        },
+        "motorhome": {"year_1_loss_pct_range": [0.12, 0.22], "year_3_total_loss_pct_range": [0.25, 0.40], "year_5_total_loss_pct_range": [0.35, 0.55]},
+        "towable": {"year_1_loss_pct_range": [0.10, 0.20], "year_3_total_loss_pct_range": [0.22, 0.36], "year_5_total_loss_pct_range": [0.32, 0.50]},
     }
 
     curve = curves.get(category_used) or defaults.get(category_used) or defaults["motorhome"]
-
     y1 = curve["year_1_loss_pct_range"]
     y3 = curve["year_3_total_loss_pct_range"]
     y5 = curve["year_5_total_loss_pct_range"]
@@ -494,16 +480,8 @@ def cost_depreciation_estimate(req: CostDepreciationRequest) -> Dict[str, Any]:
 
     output = {
         "status": "ok",
-        "rv": {
-            **req.rv.model_dump(),
-            "category_used": category_used,
-            "category_source": ("input" if req.rv_category else "default"),
-        },
-        "data_confidence": {
-            "level": "partial",
-            "meaning": "Estimates are disclosed ranges, not guarantees.",
-            "can_be_used_as_fact": False,
-        },
+        "rv": {**req.rv.model_dump(), "category_used": category_used, "category_source": ("input" if req.rv_category else "default")},
+        "data_confidence": {"level": "partial", "meaning": "Estimates are disclosed ranges, not guarantees.", "can_be_used_as_fact": False},
         "model_meta": {
             "model_version": depreciation_model.get("model_version", "v1") if isinstance(depreciation_model, dict) else "v1",
             "last_updated": depreciation_model.get("last_updated", utc_now_iso()[:10]) if isinstance(depreciation_model, dict) else utc_now_iso()[:10],
@@ -514,24 +492,19 @@ def cost_depreciation_estimate(req: CostDepreciationRequest) -> Dict[str, Any]:
         ],
         "depreciation_estimate": {
             "status": "estimate",
-            "percent_ranges": {
-                "year_1_loss_pct_range": y1,
-                "year_3_total_loss_pct_range": y3,
-                "year_5_total_loss_pct_range": y5,
-            },
+            "percent_ranges": {"year_1_loss_pct_range": y1, "year_3_total_loss_pct_range": y3, "year_5_total_loss_pct_range": y5},
             "dollar_ranges": dollar_ranges,
             "note": "Dollar ranges require purchase_price_usd." if not dollar_ranges else "Dollar ranges computed from purchase_price_usd.",
         },
     }
-
-    return {"tool": "cost_depreciation_estimate", "input": req.model_dump(), "output": output}
+    return ToolResponse(tool="cost_depreciation_estimate", input=req.model_dump(), output=output)
 
 
 # --------------------------------------------------
-# Tool 4: deal_risk_scan (clarity risk scan)
+# Tool 4: deal_risk_scan
 # --------------------------------------------------
-@app.post("/tools/deal_risk_scan")
-def deal_risk_scan(req: DealRiskScanRequest) -> Dict[str, Any]:
+@app.post("/tools/deal_risk_scan", response_model=ToolResponse)
+def deal_risk_scan(req: DealRiskScanRequest) -> ToolResponse:
     fees = req.fees or []
     total_fees = sum(float(f.amount_usd) for f in fees) if fees else None
 
@@ -545,7 +518,6 @@ def deal_risk_scan(req: DealRiskScanRequest) -> Dict[str, Any]:
     for f in fees:
         name_l = f.name.lower()
 
-        # Optional add-ons not clearly labeled
         if (f.category == "addon" or "protection" in name_l or "package" in name_l) and f.disclosed_as_optional is None:
             flags.append(
                 {
@@ -587,11 +559,7 @@ def deal_risk_scan(req: DealRiskScanRequest) -> Dict[str, Any]:
 
     output = {
         "status": "ok",
-        "data_confidence": {
-            "level": "partial" if not clarifying_questions else "stub",
-            "meaning": "Flags clarity risks and cost drivers; does not prove wrongdoing.",
-            "can_be_used_as_fact": False,
-        },
+        "data_confidence": {"level": "partial" if not clarifying_questions else "stub", "meaning": "Flags clarity risks and cost drivers; does not prove wrongdoing.", "can_be_used_as_fact": False},
         "summary": {
             "quoted_unit_price_usd": req.quoted_unit_price_usd,
             "total_fees_usd": total_fees,
@@ -623,15 +591,14 @@ def deal_risk_scan(req: DealRiskScanRequest) -> Dict[str, Any]:
             "The goal is informed consent: clear numbers, clear optionality, and understandable terms.",
         ],
     }
-
-    return {"tool": "deal_risk_scan", "input": req.model_dump(), "output": output}
+    return ToolResponse(tool="deal_risk_scan", input=req.model_dump(), output=output)
 
 
 # --------------------------------------------------
-# Tool 5: maintenance_repair_triage (safety-first)
+# Tool 5: maintenance_repair_triage
 # --------------------------------------------------
-@app.post("/tools/maintenance_repair_triage")
-def maintenance_repair_triage(req: MaintenanceRepairTriageRequest) -> Dict[str, Any]:
+@app.post("/tools/maintenance_repair_triage", response_model=ToolResponse)
+def maintenance_repair_triage(req: MaintenanceRepairTriageRequest) -> ToolResponse:
     rf = req.red_flags or TriageRedFlags()
 
     stop_triggers: List[str] = []
@@ -673,7 +640,7 @@ def maintenance_repair_triage(req: MaintenanceRepairTriageRequest) -> Dict[str, 
                 "If there is any immediate danger, prioritize safety and professional help.",
             ],
         }
-        return {"tool": "maintenance_repair_triage", "input": req.model_dump(), "output": output}
+        return ToolResponse(tool="maintenance_repair_triage", input=req.model_dump(), output=output)
 
     output = {
         "status": "ok",
@@ -694,7 +661,7 @@ def maintenance_repair_triage(req: MaintenanceRepairTriageRequest) -> Dict[str, 
             "If any danger signs appear (gas smell, smoke, CO alarm, arcing), stop and seek professional help immediately.",
         ],
     }
-    return {"tool": "maintenance_repair_triage", "input": req.model_dump(), "output": output}
+    return ToolResponse(tool="maintenance_repair_triage", input=req.model_dump(), output=output)
 
 
 # --------------------------------------------------
