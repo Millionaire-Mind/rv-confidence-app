@@ -833,6 +833,18 @@ def deal_risk_scan(req: DealRiskScanRequest) -> DealRiskScanResponse:
     for f in fees:
         name_lower = (f.name or "").lower()
 
+        # --- NEW: treat undisclosed add-ons as clarity risks (not just cost drivers) ---
+        if f.category == "addon" and f.disclosed_as_optional is not True:
+            flags.append(
+                {
+                    "type": "clarity_risk",
+                    "severity": "medium",
+                    "description": f"'{f.name}' is categorized as an add-on but is not clearly disclosed as optional. Ask for an out-the-door quote with and without it.",
+                }
+            )
+            continue
+        # --- END NEW ---
+
         if f.disclosed_as_optional is None and f.category in ("addon", "warranty", "other"):
             flags.append(
                 {
