@@ -863,7 +863,7 @@ def deal_risk_scan(req: DealRiskScanRequest) -> DealRiskScanResponse:
                 }
             )
 
-        if ("protection" in name_lower or "package" in name_lower or "prep" in name_lower) and f.disclosed_as_optional is None:
+        if ("protection" in name_lower or "package" in name_lower) and f.disclosed_as_optional is None:
             flags.append(
                 {
                     "type": "clarity_risk",
